@@ -1,0 +1,20 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "out": "docs",
+  "exclude": ["**/*.test.ts", "**/__tests__/**"],
+  "theme": "default",
+  "name": "Merkla Documentation",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Merkle Tree",
+    "Proof",
+    "Verification",
+    "Utilities",
+    "*"
+  ]
+} 
