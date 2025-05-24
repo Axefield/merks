@@ -285,6 +285,4 @@ export {
     type SerializedTree
 };
 
-export { MerkleTree } from './core/MerkleTree';
-export { defaultHash } from './constants';
 export type { MerkleNode, MerkleProof, HashFunction, MerkleTreeOptions } from './types'; 
