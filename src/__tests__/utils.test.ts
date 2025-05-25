@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import { validateSerializedTree, toBuffer, createLeafNode, validateProof } from "../utils";
 import { defaultHash } from "../index";
 import { Buffer } from "buffer";
-import { MerkleNode, MerkleProof, SerializedTree } from "../types";
+import { MerkleNode, MerkleProof, SerializedTree, ProofItem } from "../types";
 
 describe("Utility Functions", () => {
   describe("validateSerializedTree", () => {
@@ -19,7 +19,7 @@ describe("Utility Functions", () => {
         leaves: "not an array",
         tree: [["a1b2c3"]]
       };
-      expect(() => validateSerializedTree(invalidData as unknown as SerializedTree)).toThrow("Invalid tree structure");
+      expect(() => validateSerializedTree(invalidData as unknown as SerializedTree)).toThrow("Invalid tree data: leaves must be an array");
     });
 
     it("should throw on non-array tree", () => {
@@ -27,7 +27,7 @@ describe("Utility Functions", () => {
         leaves: ["a1b2c3"],
         tree: "not an array"
       };
-      expect(() => validateSerializedTree(invalidData as unknown as SerializedTree)).toThrow("Invalid tree structure");
+      expect(() => validateSerializedTree(invalidData as unknown as SerializedTree)).toThrow("Invalid tree data: tree must be an array");
     });
 
     it("should throw on invalid hex in leaves", () => {
@@ -35,7 +35,7 @@ describe("Utility Functions", () => {
         leaves: ["a1b2c3", "not hex"],
         tree: [["a1b2c3", "d4e5f6"], ["abcdef"]]
       };
-      expect(() => validateSerializedTree(invalidData)).toThrow("Invalid hex string in leaves array");
+      expect(() => validateSerializedTree(invalidData)).toThrow("Invalid tree data: leaves must be hex strings");
     });
 
     it("should throw on invalid hex in tree", () => {
@@ -43,7 +43,7 @@ describe("Utility Functions", () => {
         leaves: ["a1b2c3", "d4e5f6"],
         tree: [["a1b2c3", "d4e5f6"], ["not hex"]]
       };
-      expect(() => validateSerializedTree(invalidData)).toThrow("Invalid hex string in tree array");
+      expect(() => validateSerializedTree(invalidData)).toThrow("Invalid tree data: tree hashes must be hex strings");
     });
 
     it("should throw on non-array tree level", () => {
@@ -51,7 +51,7 @@ describe("Utility Functions", () => {
         leaves: ["a1b2c3", "d4e5f6"],
         tree: [["a1b2c3", "d4e5f6"], "not an array"]
       };
-      expect(() => validateSerializedTree(invalidData as unknown as SerializedTree)).toThrow("Invalid hex string in tree array");
+      expect(() => validateSerializedTree(invalidData as unknown as SerializedTree)).toThrow("Invalid tree data: tree levels must be arrays");
     });
 
     it("should handle empty arrays", () => {
@@ -67,7 +67,7 @@ describe("Utility Functions", () => {
         leaves: ["a1b2c3"],
         tree: [["a1b2c3"], ["abcdef"], "not an array"]
       };
-      expect(() => validateSerializedTree(malformedData as unknown as SerializedTree)).toThrow("Invalid hex string in tree array");
+      expect(() => validateSerializedTree(malformedData as unknown as SerializedTree)).toThrow("Invalid tree data: tree levels must be arrays");
     });
   });
 
@@ -106,52 +106,57 @@ describe("Utility Functions", () => {
 
   describe("validateProof", () => {
     it("should validate correct proof", () => {
-      const leafHash = defaultHash(Buffer.from("leaf"));
-      const siblingHash = defaultHash(Buffer.from("sibling"));
-      const rootHash = defaultHash(Buffer.concat([leafHash, siblingHash]));
-      
-      const proof: MerkleProof[] = [{
-        position: "right",
-        hash: siblingHash
-      }];
-
-      expect(validateProof(proof, leafHash, rootHash, defaultHash)).toBe(true);
-    });
-
-    it("should reject incorrect proof", () => {
-      const leafHash = defaultHash(Buffer.from("leaf"));
-      const wrongSiblingHash = defaultHash(Buffer.from("wrong"));
-      const rootHash = defaultHash(Buffer.from("correct root"));
-      
-      const proof: MerkleProof[] = [{
-        position: "right",
-        hash: wrongSiblingHash
-      }];
-
-      expect(validateProof(proof, leafHash, rootHash, defaultHash)).toBe(false);
-    });
-
-    it("should handle multiple proof steps", () => {
-      const leafHash = defaultHash(Buffer.from("leaf"));
-      const sibling1Hash = defaultHash(Buffer.from("sibling1"));
-      const sibling2Hash = defaultHash(Buffer.from("sibling2"));
-      
-      // Create a two-level proof
-      const intermediateHash = defaultHash(Buffer.concat([leafHash, sibling1Hash]));
-      const rootHash = defaultHash(Buffer.concat([intermediateHash, sibling2Hash]));
-      
-      const proof: MerkleProof[] = [
+      const proof: MerkleProof = [
         {
-          position: "right",
-          hash: sibling1Hash
-        },
-        {
-          position: "right",
-          hash: sibling2Hash
+          sibling: Buffer.from("test"),
+          position: "right"
         }
       ];
+      expect(() => validateProof(proof)).not.toThrow();
+    });
 
-      expect(validateProof(proof, leafHash, rootHash, defaultHash)).toBe(true);
+    it("should throw on invalid proof structure", () => {
+      const invalidProof = [
+        {
+          position: "right",
+          hash: Buffer.from("test")
+        }
+      ] as unknown as MerkleProof;
+      expect(() => validateProof(invalidProof)).toThrow();
+    });
+
+    it("should throw on invalid position", () => {
+      const invalidProof: MerkleProof = [
+        {
+          sibling: Buffer.from("test"),
+          position: "invalid" as "left" | "right"
+        }
+      ];
+      expect(() => validateProof(invalidProof)).toThrow();
+    });
+
+    it("should throw on invalid sibling", () => {
+      const invalidProof: MerkleProof = [
+        {
+          sibling: "not a buffer" as unknown as Buffer,
+          position: "right"
+        }
+      ];
+      expect(() => validateProof(invalidProof)).toThrow();
+    });
+
+    it("should validate multiple proof items", () => {
+      const proof: MerkleProof = [
+        {
+          sibling: Buffer.from("test1"),
+          position: "right"
+        },
+        {
+          sibling: Buffer.from("test2"),
+          position: "left"
+        }
+      ];
+      expect(() => validateProof(proof)).not.toThrow();
     });
   });
 }); 

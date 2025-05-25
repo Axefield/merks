@@ -33,7 +33,6 @@ export const supportedAlgorithms: HashAlgorithm[] = [
   "sha256",
   "sha512",
   "ripemd160",
-  "whirlpool",
   "md5",
   "none"
 ];

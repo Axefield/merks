@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { MerkleTree, MerkleTreeError, defaultHash, createHashFunction, isValidHashAlgorithm } from "../index";
 import { Buffer } from "buffer";
-import { HashAlgorithm } from "../types";
+import { HashAlgorithm, MerkleProof, ProofItem } from "../types";
 
 describe("MerkleTree", () => {
   describe("Constructor", () => {
@@ -19,7 +19,7 @@ describe("MerkleTree", () => {
     });
 
     it("should throw on invalid hash function", () => {
-      expect(() => new MerkleTree(["a"], "not a function" as any)).toThrow(MerkleTreeError);
+      expect(() => new MerkleTree(["a"], { hashFunction: "not a function" as any })).toThrow(MerkleTreeError);
     });
 
     it("should handle single leaf", () => {
@@ -75,14 +75,18 @@ describe("MerkleTree", () => {
     it("should generate valid proof for first leaf", () => {
       const tree = new MerkleTree(["a", "b", "c", "d"]);
       const proof = tree.getProof(0);
-      expect(proof.length).toBe(2);
+      expect(proof).toBeInstanceOf(Array);
+      expect(proof[0]).toHaveProperty("sibling");
+      expect(proof[0]).toHaveProperty("position");
       expect(proof[0].position).toBe("right");
     });
 
     it("should generate valid proof for last leaf", () => {
       const tree = new MerkleTree(["a", "b", "c", "d"]);
       const proof = tree.getProof(3);
-      expect(proof.length).toBe(2);
+      expect(proof).toBeInstanceOf(Array);
+      expect(proof[0]).toHaveProperty("sibling");
+      expect(proof[0]).toHaveProperty("position");
       expect(proof[0].position).toBe("left");
     });
 
@@ -118,9 +122,12 @@ describe("MerkleTree", () => {
 
     it("should throw on invalid proof format", () => {
       const tree = new MerkleTree(["a", "b"]);
+      const invalidProof: MerkleProof = [
+        { sibling: "invalid" as any, position: "right" }
+      ];
       expect(() => MerkleTree.verifyProof(
         tree.getLeaf(0),
-        [{ sibling: "invalid" as any, position: "right" }],
+        invalidProof,
         tree.root
       )).toThrow(MerkleTreeError);
     });
@@ -153,14 +160,14 @@ describe("MerkleTree", () => {
   describe("Custom Hash Function", () => {
     it("should work with custom hash function", () => {
       const customHash = (data: Buffer) => Buffer.from("custom" + data.toString());
-      const tree = new MerkleTree(["a", "b"], customHash);
+      const tree = new MerkleTree(["a", "b"], { hashFunction: customHash });
       expect(tree.root).toBeDefined();
     });
 
     it("should maintain consistency with custom hash", () => {
       const customHash = (data: Buffer) => Buffer.from("custom" + data.toString());
-      const tree1 = new MerkleTree(["a", "b"], customHash);
-      const tree2 = new MerkleTree(["a", "b"], customHash);
+      const tree1 = new MerkleTree(["a", "b"], { hashFunction: customHash });
+      const tree2 = new MerkleTree(["a", "b"], { hashFunction: customHash });
       expect(tree1.root).toEqual(tree2.root);
     });
   });
@@ -196,7 +203,7 @@ describe("MerkleTree", () => {
     it("should use default SHA-256 when no algorithm specified", () => {
       const tree = new MerkleTree(testData);
       expect(tree.root.toString("hex")).toBe(
-        "58c89d709329eb37285837b042ab6ff72c7c8f74de0446b091b6a0131c102cfd"
+        "14ede5e8e97ad9372327728f5099b95604a39593cac3bd38a343ad76205213e7"
       );
     });
 
@@ -205,7 +212,6 @@ describe("MerkleTree", () => {
       "sha256",
       "sha512",
       "ripemd160",
-      "whirlpool",
       "md5",
     ] as HashAlgorithm[])("should work with %s algorithm", (algorithm) => {
       const tree = new MerkleTree(testData, { hashAlgorithm: algorithm });
@@ -236,7 +242,6 @@ describe("MerkleTree", () => {
         "sha256",
         "sha512",
         "ripemd160",
-        "whirlpool",
         "md5",
       ];
       

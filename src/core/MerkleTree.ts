@@ -3,6 +3,7 @@ import {
   MerkleProof,
   MerkleTreeOptions,
   HashFunction,
+  ProofItem
 } from "../types";
 import { defaultHash, ERROR_MESSAGES } from "../constants";
 import { createLeafNode, createParentNode, validateProof } from "../utils";
@@ -33,7 +34,72 @@ export class MerkleTree {
   }
 
   /**
-   * Gets the Merkle root hash
+   * Builds the Merkle tree structure
+   */
+  private buildTree(): MerkleNode[][] {
+    const levels: MerkleNode[][] = [this.leaves];
+    let currentLevel = this.leaves;
+
+    while (currentLevel.length > 1) {
+      const nextLevel: MerkleNode[] = [];
+      for (let i = 0; i < currentLevel.length; i += 2) {
+        const left = currentLevel[i];
+        const right = i + 1 < currentLevel.length ? currentLevel[i + 1] : left;
+        nextLevel.push(createParentNode(left, right, this.hashFn, this.sortPairs));
+      }
+      levels.push(nextLevel);
+      currentLevel = nextLevel;
+    }
+
+    return levels;
+  }
+
+  /**
+   * Generates a proof for a leaf at the specified index
+   */
+  getProof(index: number): MerkleProof {
+    if (index < 0 || index >= this.leaves.length) {
+      throw new Error(ERROR_MESSAGES.INVALID_LEAF_INDEX);
+    }
+
+    const proof: MerkleProof = [];
+    let node = this.leaves[index];
+
+    for (let level = 0; level < this.tree.length - 1; level++) {
+      const parent = node.parent;
+      if (!parent) break;
+
+      const sibling = parent.left === node ? parent.right : parent.left;
+      if (!sibling) break;
+
+      proof.push({
+        sibling: sibling.hash,
+        position: parent.left === node ? "right" : "left"
+      });
+
+      node = parent;
+    }
+
+    return proof;
+  }
+
+  /**
+   * Verifies a proof against a leaf hash and root hash
+   */
+  verifyProof(leafHash: Buffer, proof: MerkleProof, rootHash: Buffer): boolean {
+    validateProof(proof);
+    let currentHash = leafHash;
+
+    for (const { sibling, position } of proof) {
+      const pair = position === "left" ? [sibling, currentHash] : [currentHash, sibling];
+      currentHash = this.hashFn(Buffer.concat(pair));
+    }
+
+    return currentHash.equals(rootHash);
+  }
+
+  /**
+   * Gets the root hash of the tree
    */
   get root(): Buffer {
     return this.tree[this.tree.length - 1][0].hash;
@@ -69,82 +135,5 @@ export class MerkleTree {
    */
   getLeaves(): Buffer[] {
     return this.leaves.map((leaf) => leaf.hash);
-  }
-
-  /**
-   * Generates a proof for a leaf at the specified index
-   * @param index Index of the leaf to generate proof for
-   */
-  getProof(index: number): MerkleProof[] {
-    if (index < 0 || index >= this.leaves.length) {
-      throw new Error(ERROR_MESSAGES.INVALID_LEAF_INDEX);
-    }
-
-    const proof: MerkleProof[] = [];
-    let node = this.leaves[index];
-
-    for (let i = 0; i < this.tree.length - 1; i++) {
-      const parent = node.parent;
-      if (!parent) break;
-
-      const sibling = parent.left === node ? parent.right : parent.left;
-      if (!sibling) break;
-
-      proof.push({
-        position: parent.left === node ? "right" : "left",
-        hash: sibling.hash,
-      });
-
-      node = parent;
-    }
-
-    return proof;
-  }
-
-  /**
-   * Verifies a proof against a leaf hash and root hash
-   * @param leafHash Hash of the leaf
-   * @param proof Array of proof objects
-   * @param rootHash Root hash to verify against
-   */
-  static verifyProof(
-    leafHash: Buffer,
-    proof: MerkleProof[],
-    rootHash: Buffer,
-    hashFn: HashFunction = defaultHash
-  ): boolean {
-    return validateProof(proof, leafHash, rootHash, hashFn);
-  }
-
-  /**
-   * Builds the Merkle tree structure
-   * @private
-   */
-  private buildTree(): MerkleNode[][] {
-    const tree: MerkleNode[][] = [this.leaves];
-    let level = this.leaves;
-
-    while (level.length > 1) {
-      const nextLevel: MerkleNode[] = [];
-
-      for (let i = 0; i < level.length; i += 2) {
-        const left = level[i];
-        const right = level[i + 1] || left;
-
-        if (this.sortPairs) {
-          const pair = [left.hash, right.hash].sort(Buffer.compare);
-          nextLevel.push(
-            createParentNode({ hash: pair[0] }, { hash: pair[1] }, this.hashFn)
-          );
-        } else {
-          nextLevel.push(createParentNode(left, right, this.hashFn));
-        }
-      }
-
-      tree.push(nextLevel);
-      level = nextLevel;
-    }
-
-    return tree;
   }
 }

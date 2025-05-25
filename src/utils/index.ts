@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { MerkleNode, MerkleProof, SerializedTree } from "../types";
+import { MerkleNode, MerkleProof, ProofItem, SerializedTree } from "../types";
 
 /**
  * Converts a string or Buffer to a Buffer
@@ -26,9 +26,13 @@ export function createLeafNode(
 export function createParentNode(
   left: MerkleNode,
   right: MerkleNode,
-  hashFn: (data: Buffer) => Buffer
+  hashFn: (data: Buffer) => Buffer,
+  sortPairs: boolean = false
 ): MerkleNode {
-  const parentHash = hashFn(Buffer.concat([left.hash, right.hash]));
+  const pair = sortPairs 
+    ? [left.hash, right.hash].sort((a, b) => a.compare(b))
+    : [left.hash, right.hash];
+  const parentHash = hashFn(Buffer.concat(pair));
   const parent: MerkleNode = {
     hash: parentHash,
     left,
@@ -40,23 +44,27 @@ export function createParentNode(
 }
 
 /**
- * Validates a Merkle proof
+ * Validates a Merkle proof structure
+ * @throws {Error} If the proof is invalid
  */
-export function validateProof(
-  proof: MerkleProof[],
-  leafHash: Buffer,
-  rootHash: Buffer,
-  hashFn: (data: Buffer) => Buffer
-): boolean {
-  let currentHash = leafHash;
-
-  for (const { position, hash } of proof) {
-    const pair =
-      position === "left" ? [hash, currentHash] : [currentHash, hash];
-    currentHash = hashFn(Buffer.concat(pair));
+export function validateProof(proof: MerkleProof): void {
+  if (!Array.isArray(proof)) {
+    throw new Error("Proof must be an array");
   }
 
-  return currentHash.equals(rootHash);
+  for (const item of proof) {
+    if (!item || typeof item !== "object") {
+      throw new Error("Proof item must be an object");
+    }
+
+    if (!Buffer.isBuffer(item.sibling)) {
+      throw new Error("Proof sibling must be a Buffer");
+    }
+
+    if (item.position !== "left" && item.position !== "right") {
+      throw new Error('Proof position must be either "left" or "right"');
+    }
+  }
 }
 
 /**
@@ -64,21 +72,35 @@ export function validateProof(
  * @throws {Error} If the data is invalid
  */
 export function validateSerializedTree(data: SerializedTree): void {
-  // Validate the structure
-  if (!Array.isArray(data.leaves) || !Array.isArray(data.tree)) {
-    throw new Error("Invalid tree structure: leaves and tree must be arrays");
+  if (!data || typeof data !== "object") {
+    throw new Error("Invalid tree data: must be an object");
+  }
+
+  if (!Array.isArray(data.leaves)) {
+    throw new Error("Invalid tree data: leaves must be an array");
+  }
+
+  if (!Array.isArray(data.tree)) {
+    throw new Error("Invalid tree data: tree must be an array");
   }
 
   // Validate hex strings
-  const isValidHex = (str: string) => /^[0-9a-fA-F]+$/.test(str);
+  const hexRegex = /^[0-9a-fA-F]+$/;
   
-  if (!data.leaves.every(isValidHex)) {
-    throw new Error("Invalid hex string in leaves array");
+  for (const leaf of data.leaves) {
+    if (typeof leaf !== "string" || !hexRegex.test(leaf)) {
+      throw new Error("Invalid tree data: leaves must be hex strings");
+    }
   }
-  
-  if (!data.tree.every(level => 
-    Array.isArray(level) && level.every(isValidHex)
-  )) {
-    throw new Error("Invalid hex string in tree array");
+
+  for (const level of data.tree) {
+    if (!Array.isArray(level)) {
+      throw new Error("Invalid tree data: tree levels must be arrays");
+    }
+    for (const hash of level) {
+      if (typeof hash !== "string" || !hexRegex.test(hash)) {
+        throw new Error("Invalid tree data: tree hashes must be hex strings");
+      }
+    }
   }
 }

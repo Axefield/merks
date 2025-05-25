@@ -1,25 +1,13 @@
 import { createHash } from "crypto";
 import { createHashFunction, defaultHash, isValidHashAlgorithm } from "./utils/hash";
 import { validateSerializedTree } from "./utils";
-import { HashAlgorithm, HashFunction, MerkleNode, MerkleProof, MerkleTreeOptions, SerializedTree } from "./types";
-
-interface ProofItem {
-  sibling: Buffer;
-  position: "left" | "right";
-}
+import { HashAlgorithm, HashFunction, MerkleNode, MerkleProof, MerkleTreeOptions, ProofItem, SerializedTree } from "./types";
 
 class MerkleTreeError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "MerkleTreeError";
   }
-}
-
-function defaultHash(data: Buffer): Buffer {
-  if (!Buffer.isBuffer(data)) {
-    throw new MerkleTreeError("Hash input must be a Buffer");
-  }
-  return createHash("sha256").update(data).digest();
 }
 
 class MerkleTree {
@@ -42,6 +30,9 @@ class MerkleTree {
 
     // Set up hash function
     if (options.hashFunction) {
+      if (typeof options.hashFunction !== "function") {
+        throw new MerkleTreeError("Hash function must be a function");
+      }
       this.hashFn = options.hashFunction;
     } else if (options.hashAlgorithm) {
       if (!isValidHashAlgorithm(options.hashAlgorithm)) {
@@ -101,7 +92,7 @@ class MerkleTree {
    * where position is 'left' or 'right'
    * @throws {MerkleTreeError} If index is invalid
    */
-  getProof(index: number): ProofItem[] {
+  getProof(index: number): MerkleProof {
     if (!Number.isInteger(index)) {
       throw new MerkleTreeError("Index must be an integer");
     }
@@ -111,7 +102,7 @@ class MerkleTree {
       );
     }
 
-    const proof: ProofItem[] = [];
+    const proof: MerkleProof = [];
     let idx = index;
 
     for (let level = 0; level < this._tree.length - 1; level++) {
@@ -139,9 +130,9 @@ class MerkleTree {
    */
   static verifyProof(
     leafHash: Buffer,
-    proof: ProofItem[],
+    proof: MerkleProof,
     root: Buffer,
-    hashFn: (data: Buffer) => Buffer = defaultHash
+    hashFn: HashFunction = defaultHash
   ): boolean {
     if (!Buffer.isBuffer(leafHash)) {
       throw new MerkleTreeError("Leaf hash must be a Buffer");
@@ -204,7 +195,7 @@ class MerkleTree {
    */
   static fromJSON(
     json: string,
-    hashFn: (data: Buffer) => Buffer = defaultHash
+    hashFn: HashFunction = defaultHash
   ): MerkleTree {
     try {
       const data: SerializedTree = JSON.parse(json);
@@ -246,14 +237,6 @@ class MerkleTree {
   }
 
   /**
-   * Get the depth of the tree (alias for depth getter)
-   * @returns {number} Tree depth
-   */
-  getDepth(): number {
-    return this.depth;
-  }
-
-  /**
    * Get a leaf hash by index
    * @param index Leaf index
    * @returns {Buffer} Leaf hash
@@ -280,53 +263,6 @@ class MerkleTree {
   }
 }
 
-// Example usage:
-if (require.main === module) {
-  // Example data
-  const data = ["a", "b", "c", "d"];
-
-  // Create the Merkle tree
-  const tree = new MerkleTree(data);
-
-  // Print the Merkle root (as hex)
-  console.log("Merkle Root:", tree.root.toString("hex"));
-
-  // Print tree statistics
-  console.log("Tree Statistics:");
-  console.log("- Leaf Count:", tree.leafCount);
-  console.log("- Tree Depth:", tree.depth);
-
-  // Print all levels for debugging
-  tree.tree.forEach((level, i) => {
-    console.log(`Level ${i}:`);
-    level.forEach((hash, j) => console.log(`  [${j}]:`, hash.toString("hex")));
-  });
-
-  // Choose a leaf index to prove (e.g., index 2 for 'c')
-  const leafIndex = 2;
-  const proof = tree.getProof(leafIndex);
-  console.log(`Proof for leaf at index ${leafIndex} ('${data[leafIndex]}'):`);
-  proof.forEach((item, i) => {
-    console.log(
-      `  Sibling ${i} (${item.position}):`,
-      item.sibling.toString("hex")
-    );
-  });
-
-  // Verify the proof
-  const leafHash = defaultHash(Buffer.from(data[leafIndex]));
-  const isValid = MerkleTree.verifyProof(leafHash, proof, tree.root);
-  console.log("Proof valid?", isValid);
-
-  // Demonstrate serialization
-  const serialized = tree.toJSON();
-  console.log("\nSerialized Tree:", serialized);
-
-  const reconstructed = MerkleTree.fromJSON(serialized);
-  console.log("Reconstructed Root:", reconstructed.root.toString("hex"));
-  console.log("Roots match?", reconstructed.root.equals(tree.root));
-}
-
 export {
   MerkleTree,
   MerkleTreeError,
@@ -338,5 +274,6 @@ export {
   type MerkleTreeOptions,
   type MerkleNode,
   type MerkleProof,
+  type ProofItem,
   type SerializedTree,
 };

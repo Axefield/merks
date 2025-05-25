@@ -9,12 +9,17 @@ export interface MerkleNode {
 }
 
 /**
+ * Represents a Merkle proof item
+ */
+export interface ProofItem {
+  sibling: Buffer;
+  position: "left" | "right";
+}
+
+/**
  * Represents a Merkle proof
  */
-export interface MerkleProof {
-  position: "left" | "right";
-  hash: Buffer;
-}
+export type MerkleProof = ProofItem[];
 
 /**
  * Supported hash algorithms
