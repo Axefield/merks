@@ -17,6 +17,18 @@ export interface MerkleProof {
 }
 
 /**
+ * Supported hash algorithms
+ */
+export type HashAlgorithm = 
+  | "sha1"
+  | "sha256"
+  | "sha512"
+  | "ripemd160"
+  | "whirlpool"
+  | "md5"
+  | "none";
+
+/**
  * Hash function type
  */
 export type HashFunction = (data: Buffer) => Buffer;
@@ -26,6 +38,7 @@ export type HashFunction = (data: Buffer) => Buffer;
  */
 export interface MerkleTreeOptions {
   hashFunction?: HashFunction;
+  hashAlgorithm?: HashAlgorithm;
   sortPairs?: boolean;
 }
 

@@ -1,121 +1,122 @@
-# Merkla
+# Merkle Tree Implementation
 
-A production-ready Merkle tree implementation in JavaScript.
+A TypeScript implementation of a Merkle tree with support for multiple hash algorithms.
 
 ## Features
 
-- Efficient Merkle tree construction and verification
-- Support for custom hash functions
-- Comprehensive error handling
+- Support for multiple hash algorithms (SHA-1, SHA-256, SHA-512, RIPEMD-160, Whirlpool, MD5)
+- Custom hash function support
+- TypeScript support with full type definitions
+- Comprehensive test coverage
 - Serialization and deserialization
-- TypeScript-friendly with JSDoc comments
-- Buffer-based implementation for optimal performance
-- Production-ready with proper validation and error handling
+- Proof generation and verification
 
 ## Installation
 
 ```bash
-npm install merkla
+npm install merkle-tree-ts
 ```
 
 ## Usage
 
-```javascript
-const { MerkleTree, defaultHash } = require('merkla');
+```typescript
+import { MerkleTree } from 'merkle-tree-ts';
 
-// Create a new Merkle tree from an array of data
-const data = ['a', 'b', 'c', 'd'];
-const tree = new MerkleTree(data);
+// Create a tree with default SHA-256
+const tree = new MerkleTree(['a', 'b', 'c', 'd']);
 
-// Get the Merkle root
+// Create a tree with a specific hash algorithm
+const tree = new MerkleTree(['a', 'b', 'c', 'd'], { 
+  hashAlgorithm: 'sha512' 
+});
+
+// Create a tree with a custom hash function
+const customHash = (data: Buffer) => Buffer.from('custom');
+const tree = new MerkleTree(['a', 'b', 'c', 'd'], { 
+  hashFunction: customHash 
+});
+
+// Get the root hash
 const root = tree.root;
 
-// Generate a proof for a specific leaf
-const proof = tree.getProof(2); // Proof for 'c'
+// Generate a proof for a leaf
+const proof = tree.getProof(0);
 
 // Verify a proof
-const leafHash = defaultHash(Buffer.from('c'));
-const isValid = MerkleTree.verifyProof(leafHash, proof, root);
+const isValid = tree.verify(proof, 'a', root);
 
 // Serialize the tree
 const serialized = tree.toJSON();
 
-// Reconstruct the tree from serialized data
-const reconstructed = MerkleTree.fromJSON(serialized);
+// Deserialize the tree
+const deserialized = MerkleTree.fromJSON(serialized);
 ```
+
+## Supported Hash Algorithms
+
+- SHA-1
+- SHA-256 (default)
+- SHA-512
+- RIPEMD-160
+- Whirlpool
+- MD5
 
 ## API
 
-### MerkleTree
+### Constructor
 
-#### Constructor
-
-```javascript
-new MerkleTree(leaves: Buffer[]|string[], hashFn?: Function)
+```typescript
+new MerkleTree(leaves: (Buffer | string)[], options?: MerkleTreeOptions)
 ```
 
-Creates a new Merkle tree from an array of leaves. Each leaf can be either a Buffer or a string.
+#### Options
 
-#### Properties
-
-- `root`: Buffer - The Merkle root hash
-- `tree`: Buffer[][] - The complete tree structure
-- `leafCount`: number - Number of leaves in the tree
-- `depth`: number - Depth of the tree
-
-#### Methods
-
-- `getProof(index: number)`: Generate a proof for a leaf at the specified index
-- `getLeaf(index: number)`: Get a leaf hash by index
-- `getLeaves()`: Get all leaf hashes
-- `toJSON()`: Serialize the tree to a JSON string
-
-#### Static Methods
-
-- `verifyProof(leafHash: Buffer, proof: Array, root: Buffer, hashFn?: Function)`: Verify a proof
-- `fromJSON(json: string, hashFn?: Function)`: Create a tree from a JSON string
-
-### MerkleTreeError
-
-Custom error class for Merkle tree operations.
-
-## Error Handling
-
-The library uses a custom `MerkleTreeError` class for all errors. All methods include proper validation and error handling:
-
-```javascript
-try {
-    const tree = new MerkleTree(data);
-    const proof = tree.getProof(index);
-} catch (error) {
-    if (error instanceof MerkleTreeError) {
-        // Handle Merkle tree specific errors
-    }
+```typescript
+interface MerkleTreeOptions {
+  hashAlgorithm?: HashAlgorithm;  // One of: 'sha1', 'sha256', 'sha512', 'ripemd160', 'whirlpool', 'md5'
+  hashFunction?: HashFunction;    // Custom hash function: (data: Buffer) => Buffer
 }
 ```
 
-## Performance
+### Methods
 
-The implementation is optimized for performance:
-- Uses Node.js native Buffer for efficient binary data handling
-- Minimizes memory allocations
-- Efficient tree construction algorithm
-- Optimized proof generation and verification
+- `getRoot(): Buffer` - Get the root hash
+- `getProof(index: number): MerkleProof` - Generate a proof for a leaf
+- `verify(proof: MerkleProof, leaf: Buffer | string, root: Buffer): boolean` - Verify a proof
+- `toJSON(): string` - Serialize the tree
+- `static fromJSON(json: string): MerkleTree` - Deserialize the tree
 
-## Security
+## Types
 
-- Uses SHA-256 by default (can be customized)
-- Proper input validation
-- No direct exposure of internal tree structure
-- Immutable leaf hashes
+```typescript
+type HashAlgorithm = 'sha1' | 'sha256' | 'sha512' | 'ripemd160' | 'whirlpool' | 'md5';
+
+type HashFunction = (data: Buffer) => Buffer;
+
+interface MerkleProof {
+  siblings: Buffer[];
+  path: number[];
+}
+
+interface MerkleTreeOptions {
+  hashAlgorithm?: HashAlgorithm;
+  hashFunction?: HashFunction;
+}
+```
+
+## Error Handling
+
+The library throws `MerkleTreeError` for various error conditions:
+
+- Empty leaves array
+- Invalid hash algorithm
+- Invalid hash function
+- Invalid proof
+- Invalid serialized data
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 

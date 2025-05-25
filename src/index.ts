@@ -1,14 +1,11 @@
 import { createHash } from "crypto";
+import { createHashFunction, defaultHash, isValidHashAlgorithm } from "./utils/hash";
 import { validateSerializedTree } from "./utils";
+import { HashAlgorithm, HashFunction, MerkleNode, MerkleProof, MerkleTreeOptions, SerializedTree } from "./types";
 
 interface ProofItem {
   sibling: Buffer;
   position: "left" | "right";
-}
-
-interface SerializedTree {
-  leaves: string[];
-  tree: string[][];
 }
 
 class MerkleTreeError extends Error {
@@ -28,28 +25,37 @@ function defaultHash(data: Buffer): Buffer {
 class MerkleTree {
   private _leaves: Buffer[];
   private _tree: Buffer[][];
-  public readonly hashFn: (data: Buffer) => Buffer;
+  public readonly hashFn: HashFunction;
 
   /**
    * @param leaves – raw data for the leaves
-   * @param hashFn – (optional) hashing function: Buffer -> Buffer
+   * @param options – (optional) configuration options
    * @throws {MerkleTreeError} If leaves array is empty or invalid
    */
   constructor(
     leaves: (Buffer | string)[],
-    hashFn: (data: Buffer) => Buffer = defaultHash
+    options: MerkleTreeOptions = {}
   ) {
     if (!Array.isArray(leaves) || leaves.length === 0) {
       throw new MerkleTreeError("Leaves must be a non-empty array");
     }
-    if (typeof hashFn !== "function") {
-      throw new MerkleTreeError("Hash function must be a function");
+
+    // Set up hash function
+    if (options.hashFunction) {
+      this.hashFn = options.hashFunction;
+    } else if (options.hashAlgorithm) {
+      if (!isValidHashAlgorithm(options.hashAlgorithm)) {
+        throw new MerkleTreeError(`Unsupported hash algorithm: ${options.hashAlgorithm}`);
+      }
+      this.hashFn = createHashFunction(options.hashAlgorithm);
+    } else {
+      this.hashFn = defaultHash;
     }
 
     // store the leaf hashes
     this._leaves = leaves.map((l, index) => {
       try {
-        return Buffer.isBuffer(l) ? hashFn(l) : hashFn(Buffer.from(String(l)));
+        return Buffer.isBuffer(l) ? this.hashFn(l) : this.hashFn(Buffer.from(String(l)));
       } catch (error) {
         throw new MerkleTreeError(
           `Failed to hash leaf at index ${index}: ${
@@ -58,7 +64,7 @@ class MerkleTree {
         );
       }
     });
-    this.hashFn = hashFn;
+
     // build the tree levels
     this._tree = [this._leaves];
     this._buildTree();
@@ -205,7 +211,7 @@ class MerkleTree {
       validateSerializedTree(data);
       
       // Create a new instance with dummy data to satisfy constructor
-      const tree = new MerkleTree(["dummy"], hashFn);
+      const tree = new MerkleTree(["dummy"], { hashFunction: hashFn });
       
       // Replace the internal state with deserialized data
       tree._leaves = data.leaves.map((h) => Buffer.from(h, "hex"));
@@ -325,13 +331,12 @@ export {
   MerkleTree,
   MerkleTreeError,
   defaultHash,
-  type ProofItem,
+  createHashFunction,
+  isValidHashAlgorithm,
+  type HashAlgorithm,
+  type HashFunction,
+  type MerkleTreeOptions,
+  type MerkleNode,
+  type MerkleProof,
   type SerializedTree,
 };
-
-export type {
-  MerkleNode,
-  MerkleProof,
-  HashFunction,
-  MerkleTreeOptions,
-} from "./types";

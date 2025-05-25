@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
-import { MerkleTree, MerkleTreeError, defaultHash } from "../index";
+import { MerkleTree, MerkleTreeError, defaultHash, createHashFunction, isValidHashAlgorithm } from "../index";
 import { Buffer } from "buffer";
+import { HashAlgorithm } from "../types";
 
 describe("MerkleTree", () => {
   describe("Constructor", () => {
@@ -186,6 +187,66 @@ describe("MerkleTree", () => {
       const data = Array(100).fill("a");
       const tree = new MerkleTree(data);
       expect(tree.root).toBeDefined();
+    });
+  });
+
+  describe("Hash Algorithms", () => {
+    const testData = ["a", "b", "c", "d"];
+
+    it("should use default SHA-256 when no algorithm specified", () => {
+      const tree = new MerkleTree(testData);
+      expect(tree.root.toString("hex")).toBe(
+        "58c89d709329eb37285837b042ab6ff72c7c8f74de0446b091b6a0131c102cfd"
+      );
+    });
+
+    it.each([
+      "sha1",
+      "sha256",
+      "sha512",
+      "ripemd160",
+      "whirlpool",
+      "md5",
+    ] as HashAlgorithm[])("should work with %s algorithm", (algorithm) => {
+      const tree = new MerkleTree(testData, { hashAlgorithm: algorithm });
+      expect(tree.root).toBeDefined();
+      expect(tree.root.length).toBeGreaterThan(0);
+    });
+
+    it("should throw error for unsupported algorithm", () => {
+      expect(() => {
+        new MerkleTree(testData, { hashAlgorithm: "unsupported" as HashAlgorithm });
+      }).toThrow(MerkleTreeError);
+    });
+
+    it("should allow custom hash function", () => {
+      const customHash = (data: Buffer) => Buffer.from("custom");
+      const tree = new MerkleTree(testData, { hashFunction: customHash });
+      expect(tree.root.toString()).toBe("custom");
+    });
+
+    it("should validate hash algorithms", () => {
+      expect(isValidHashAlgorithm("sha256")).toBe(true);
+      expect(isValidHashAlgorithm("unsupported" as HashAlgorithm)).toBe(false);
+    });
+
+    it("should create hash functions for all supported algorithms", () => {
+      const algorithms: HashAlgorithm[] = [
+        "sha1",
+        "sha256",
+        "sha512",
+        "ripemd160",
+        "whirlpool",
+        "md5",
+      ];
+      
+      algorithms.forEach((algorithm) => {
+        const hashFn = createHashFunction(algorithm);
+        expect(typeof hashFn).toBe("function");
+        const result = hashFn(Buffer.from("test"));
+        expect(Buffer.isBuffer(result)).toBe(true);
+        expect(result.length).toBeGreaterThan(0);
+      });
     });
   });
 });
