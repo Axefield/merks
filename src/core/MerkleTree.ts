@@ -1,6 +1,11 @@
-import { MerkleNode, MerkleProof, MerkleTreeOptions, HashFunction } from '../types';
-import { defaultHash, ERROR_MESSAGES } from '../constants';
-import { createLeafNode, createParentNode, toBuffer, validateProof } from '../utils';
+import {
+  MerkleNode,
+  MerkleProof,
+  MerkleTreeOptions,
+  HashFunction,
+} from "../types";
+import { defaultHash, ERROR_MESSAGES } from "../constants";
+import { createLeafNode, createParentNode, validateProof } from "../utils";
 
 /**
  * A production-ready Merkle tree implementation
@@ -23,7 +28,7 @@ export class MerkleTree {
 
     this.hashFn = options.hashFunction || defaultHash;
     this.sortPairs = options.sortPairs || false;
-    this.leaves = data.map(item => createLeafNode(item, this.hashFn));
+    this.leaves = data.map((item) => createLeafNode(item, this.hashFn));
     this.tree = this.buildTree();
   }
 
@@ -63,7 +68,7 @@ export class MerkleTree {
    * Gets all leaf hashes
    */
   getLeaves(): Buffer[] {
-    return this.leaves.map(leaf => leaf.hash);
+    return this.leaves.map((leaf) => leaf.hash);
   }
 
   /**
@@ -86,7 +91,7 @@ export class MerkleTree {
       if (!sibling) break;
 
       proof.push({
-        position: parent.left === node ? 'right' : 'left',
+        position: parent.left === node ? "right" : "left",
         hash: sibling.hash,
       });
 
@@ -102,7 +107,12 @@ export class MerkleTree {
    * @param proof Array of proof objects
    * @param rootHash Root hash to verify against
    */
-  static verifyProof(leafHash: Buffer, proof: MerkleProof[], rootHash: Buffer, hashFn: HashFunction = defaultHash): boolean {
+  static verifyProof(
+    leafHash: Buffer,
+    proof: MerkleProof[],
+    rootHash: Buffer,
+    hashFn: HashFunction = defaultHash
+  ): boolean {
     return validateProof(proof, leafHash, rootHash, hashFn);
   }
 
@@ -116,27 +126,25 @@ export class MerkleTree {
 
     while (level.length > 1) {
       const nextLevel: MerkleNode[] = [];
-      
+
       for (let i = 0; i < level.length; i += 2) {
         const left = level[i];
         const right = level[i + 1] || left;
-        
+
         if (this.sortPairs) {
           const pair = [left.hash, right.hash].sort(Buffer.compare);
-          nextLevel.push(createParentNode(
-            { hash: pair[0] },
-            { hash: pair[1] },
-            this.hashFn
-          ));
+          nextLevel.push(
+            createParentNode({ hash: pair[0] }, { hash: pair[1] }, this.hashFn)
+          );
         } else {
           nextLevel.push(createParentNode(left, right, this.hashFn));
         }
       }
-      
+
       tree.push(nextLevel);
       level = nextLevel;
     }
 
     return tree;
   }
-} 
+}

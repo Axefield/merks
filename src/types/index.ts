@@ -12,7 +12,7 @@ export interface MerkleNode {
  * Represents a Merkle proof
  */
 export interface MerkleProof {
-  position: 'left' | 'right';
+  position: "left" | "right";
   hash: Buffer;
 }
 
@@ -27,4 +27,4 @@ export type HashFunction = (data: Buffer) => Buffer;
 export interface MerkleTreeOptions {
   hashFunction?: HashFunction;
   sortPairs?: boolean;
-} 
+}
