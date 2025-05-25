@@ -1,6 +1,6 @@
 {
   "name": "merkla",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A production-ready Merkle tree implementation in JavaScript",
   "main": "dist/merkla.js",
   "types": "dist/merkla.d.ts",

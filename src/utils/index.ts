@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { MerkleNode, MerkleProof } from "../types";
+import { MerkleNode, MerkleProof, SerializedTree } from "../types";
 
 /**
  * Converts a string or Buffer to a Buffer
@@ -57,4 +57,28 @@ export function validateProof(
   }
 
   return currentHash.equals(rootHash);
+}
+
+/**
+ * Validates serialized tree data
+ * @throws {Error} If the data is invalid
+ */
+export function validateSerializedTree(data: SerializedTree): void {
+  // Validate the structure
+  if (!Array.isArray(data.leaves) || !Array.isArray(data.tree)) {
+    throw new Error("Invalid tree structure: leaves and tree must be arrays");
+  }
+
+  // Validate hex strings
+  const isValidHex = (str: string) => /^[0-9a-fA-F]+$/.test(str);
+  
+  if (!data.leaves.every(isValidHex)) {
+    throw new Error("Invalid hex string in leaves array");
+  }
+  
+  if (!data.tree.every(level => 
+    Array.isArray(level) && level.every(isValidHex)
+  )) {
+    throw new Error("Invalid hex string in tree array");
+  }
 }

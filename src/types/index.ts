@@ -28,3 +28,11 @@ export interface MerkleTreeOptions {
   hashFunction?: HashFunction;
   sortPairs?: boolean;
 }
+
+/**
+ * Represents the serialized form of a Merkle tree
+ */
+export interface SerializedTree {
+  leaves: string[];  // Array of hex strings representing leaf hashes
+  tree: string[][];  // 2D array of hex strings representing tree levels
+}

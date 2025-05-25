@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { validateSerializedTree } from "./utils";
 
 interface ProofItem {
   sibling: Buffer;
@@ -201,11 +202,17 @@ class MerkleTree {
   ): MerkleTree {
     try {
       const data: SerializedTree = JSON.parse(json);
-      const tree = new MerkleTree([], hashFn);
+      validateSerializedTree(data);
+      
+      // Create a new instance with dummy data to satisfy constructor
+      const tree = new MerkleTree(["dummy"], hashFn);
+      
+      // Replace the internal state with deserialized data
       tree._leaves = data.leaves.map((h) => Buffer.from(h, "hex"));
       tree._tree = data.tree.map((level) =>
         level.map((h) => Buffer.from(h, "hex"))
       );
+      
       return tree;
     } catch (error) {
       throw new MerkleTreeError(
@@ -230,6 +237,14 @@ class MerkleTree {
    */
   get depth(): number {
     return this._tree.length;
+  }
+
+  /**
+   * Get the depth of the tree (alias for depth getter)
+   * @returns {number} Tree depth
+   */
+  getDepth(): number {
+    return this.depth;
   }
 
   /**
